@@ -1,79 +1,118 @@
 import sqlite3
+import flet as ft
 
-try:
-        
+def conectar():
+    return sqlite3.connect('estoque.db')
 
-    conn = sqlite3.connect('estoque.db')
-    cursor = conn.cursor()
-
-
-
-    cursor.execute('''
-
-CREATE TABLE IF NOT EXISTS produtos (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nome TEXT NOT NULL,
-    quantidade INTEGER NOT NULL,
-    preco REAL NOT NULL
-)                                 
-        ''')
-
-    print("Conexão com Banco de dados bem sucessedida !!")
-    print("Tabela 'produtos' criada ou já existente")
-
-except sqlite3.Error as e: 
-    print("Error  ao conectar ao banco de dados", e )
-
-finally: 
-
-    if conn : 
-            conn.commit()
-            conn.close()
-            print("Conexão com o banco de dados finalizada")
-
-
-
-
-import sqlite3
-
-def cadastrar_produtos():
+def criar_tabela():
     try:
-        conn = sqlite3.connect('estoque.db')
+        conn = conectar()
         cursor = conn.cursor()
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS produtos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            quantidade INTEGER NOT NULL,
+            preco REAL NOT NULL
+        )                                 
+        ''')
+        conn.commit()
+    except sqlite3.Error as e:
+        print(f"Erro ao criar a tabela: {e}")
+    finally:
+        if conn:
+            conn.close()
 
-        nome = input("Digite o nome do produto que queira cadastrar: ")
-        quantidade = int(input("Digite a quantidade de produto escolhido: "))
-        preco = float(input("Digite o valor do produto escolhido: "))
-
+def cadastrar_produto(nome, quantidade, preco):
+    try:
+        conn = conectar()
+        cursor = conn.cursor()
         cursor.execute('''
         INSERT INTO produtos (nome, quantidade, preco)
         VALUES (?, ?, ?)
         ''', (nome, quantidade, preco))
-
         conn.commit()
-        print("Produto cadastrado com sucesso!")
-
+        return "Produto cadastrado com sucesso!"
     except sqlite3.Error as e:
-        print("Erro ao cadastrar o produto:", e)
-
+        return f"Erro ao cadastrar o produto: {e}"
     finally:
         if conn:
             conn.close()
-            print("Conexão com o banco de dados finalizada.")
 
-         
+def listar_produtos():
+    try:
+        conn = conectar()
+        cursor = conn.cursor()
+        cursor.execute('SELECT id, nome, quantidade, preco FROM produtos')
+        produtos = cursor.fetchall()
+        return produtos
+    except sqlite3.Error as e:
+        return f"Erro ao listar produtos: {e}"
+    finally:
+        if conn:
+            conn.close()
+
+def main(page: ft.Page):
+    page.title = "Sistema de Gerenciamento de Estoque"
+    page.horizontal_alignment = ft.MainAxisAlignment.CENTER
+    page.vertical_alignment = ft.MainAxisAlignment.CENTER
+    page.bgcolor = "black"
+
+    nome_input = ft.TextField(label="Nome do Produto", autofocus=True, border_color="#fb0100", width=500)
+    quantidade_input = ft.TextField(label="Quantidade", keyboard_type=ft.KeyboardType.NUMBER, border_color="#fb0100", width=500)
+    preco_input = ft.TextField(label="Preço", keyboard_type=ft.KeyboardType.NUMBER, border_color="#fb0100", width=500)
+
+    
+
+    def on_cadastrar_click(e):
+        nome = nome_input.value
+        quantidade = int(quantidade_input.value)
+        preco = float(preco_input.value)
+        
+        resultado = cadastrar_produto(nome, quantidade, preco)
+        
+        resultado_label.value = resultado
+        nome_input.value = ""
+        quantidade_input.value = ""
+        preco_input.value = ""
+        page.update()
+
+    cadastrar_button = ft.ElevatedButton("Cadastrar Produto", on_click=on_cadastrar_click, width=200 , bgcolor = "red" , color = "white")
+
+    resultado_label = ft.Text("", size=16)
+
+    def on_listar_click(e):
+        produtos = listar_produtos()
+        
+        produtos_lista.clear()
+        
+        for produto in produtos:
+            produtos_lista.add(ft.Text(f"ID: {produto[0]} - {produto[1]} | Quantidade: {produto[2]} | Preço: R${produto[3]:.2f}"))
+        
+        page.update()
+    
+    listar_button = ft.ElevatedButton("Listar Produtos", on_click=on_listar_click, width=200 , bgcolor = "#4bc228" ,  color = "white")
+
+    produtos_lista = ft.Column()
+
+    imagem_logo = ft.Image(src="background_image.jpg", width=400, height=400)
+
+    page.add(
+        imagem_logo,
+        nome_input,
+        quantidade_input,
+        preco_input,
+        cadastrar_button,
+        resultado_label,
+        listar_button,
+        produtos_lista
+        
+    )
+
+
 
 if __name__ == "__main__":
-    while True:
-        print("\n1. Cadastrar Produto")
-        print("2. Sair")
-        opcao = input("Escolha uma das opções: ")
+    criar_tabela()
+    ft.app(target=main)
 
-        if opcao == "1":
-            cadastrar_produtos()
-        elif opcao == "2":
-            print("Encerrando o Sistema de Cadastro de Produtos :(")
-            break
-        else:
-            print("Opção inválida!")
 
